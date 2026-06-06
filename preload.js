@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electron', {
   toggleAlwaysOnTop: (val) => ipcRenderer.send('toggle-always-on-top', val),
   onAuthResult: (cb) => ipcRenderer.on('auth-result', (e, data) => cb(data)),
   onAlwaysOnTopChanged: (cb) => ipcRenderer.on('always-on-top-changed', (e, val) => cb(val)),
-  getConfig: () => ipcRenderer.invoke('get-config')
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  fetchNetease: (url) => ipcRenderer.invoke('fetch-netease', url)
 })

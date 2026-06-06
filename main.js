@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
+const https = require('https')
 const path = require('path')
 
 const CLIENT_ID = 'd71ace25c4f24990ab28668fab7e61e8'
@@ -84,6 +85,25 @@ ipcMain.on('minimize-window', () => { if (lyricsWin) lyricsWin.minimize() })
 ipcMain.on('toggle-always-on-top', (e, val) => {
   applyAlwaysOnTop(val)
   e.reply('always-on-top-changed', val)
+})
+
+ipcMain.handle('fetch-netease', (e, url) => {
+  return new Promise((resolve) => {
+    const options = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://music.163.com/'
+      }
+    }
+    https.get(url, options, (res) => {
+      let data = ''
+      res.on('data', chunk => data += chunk)
+      res.on('end', () => {
+        try { resolve({ ok: res.statusCode < 400, body: JSON.parse(data) }) }
+        catch { resolve({ ok: false, body: null }) }
+      })
+    }).on('error', () => resolve({ ok: false, body: null }))
+  })
 })
 
 ipcMain.handle('get-config', () => ({

@@ -640,17 +640,16 @@ async function getPlaying() {
 
 /* ── lyrics ── */
 async function getLyricsNetease(artist, title) {
+  const BASE = 'https://music.163.com/api'
   const trySearch = async (q) => {
     try {
-      const sr = await fetch(`https://netease-cloud-music-api-ten-psi.vercel.app/search?keywords=${encodeURIComponent(q)}&limit=1`)
+      const sr = await window.electron.fetchNetease(`${BASE}/search/get/?s=${encodeURIComponent(q)}&type=1&offset=0&total=true&limit=1`)
       if (!sr.ok) return null
-      const sd = await sr.json()
-      const id = sd?.result?.songs?.[0]?.id
+      const id = sr.body?.result?.songs?.[0]?.id
       if (!id) return null
-      const lr = await fetch(`https://netease-cloud-music-api-ten-psi.vercel.app/lyric?id=${id}`)
+      const lr = await window.electron.fetchNetease(`${BASE}/song/lyric?id=${id}&lv=1&kv=1&tv=-1`)
       if (!lr.ok) return null
-      const ld = await lr.json()
-      const lrc = ld?.lrc?.lyric
+      const lrc = lr.body?.lrc?.lyric
       if (!lrc) return null
       return { raw: lrc, source: 'NetEase', timed: true }
     } catch { return null }
