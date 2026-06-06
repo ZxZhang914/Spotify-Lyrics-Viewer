@@ -139,12 +139,12 @@
     .track-info { flex: 1; min-width: 0; }
 
     .track-name {
-      font-size: 16px; font-weight: 600;
+      font-size: 18px; font-weight: 600; color: var(--text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
     .track-artist {
-      font-size: 13px; color: var(--text-sub); margin-top: 4px;
+      font-size: 15px; color: var(--text-sub); margin-top: 4px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
@@ -237,6 +237,32 @@
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── bright mode ── */
+    #app.bright {
+      --bg: rgba(242, 242, 242, 0.95);
+      --bg-header: rgba(225, 225, 225, 0.98);
+      --border: rgba(0, 0, 0, 0.08);
+      --text: #111111;
+      --text-sub: #555555;
+      --text-muted: #aaa;
+    }
+
+    #app.bright .lyric-line        { color: #cccccc; }
+    #app.bright .lyric-line.past   { color: #cccccc; }
+    #app.bright .lyric-line.near   { color: #888888; }
+    #app.bright .lyric-line.active { color: #111111; }
+    #app.bright .lyric-line.active .lyric-char {
+      background: linear-gradient(to right, var(--green) var(--char-fill, 0%), #111111 var(--char-fill, 0%));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    #app.bright .state i           { color: #cccccc; }
+    #app.bright .spinner           { border-color: #cccccc; border-top-color: var(--green); }
+    #app.bright .progress-wrap     { background: #dddddd; }
+    #app.bright .cover             { background: #dddddd; }
+    #app.bright .footer            { color: #aaaaaa; }
+    #app.bright .footer.visible    { color: #777777; }
+    #app.bright .lyrics-scroll::-webkit-scrollbar-thumb { background: #cccccc; }
 
     /* ── playback controls ── */
     .controls {
@@ -373,6 +399,9 @@
       <button class="tb-btn" title="Refresh" onclick="refreshTrack()">
         <i class="ti ti-refresh"></i>
       </button>
+      <button class="tb-btn" id="modeBtn" title="切换亮色/暗色" onclick="toggleMode()">
+        <i class="ti ti-sun" id="modeIcon"></i>
+      </button>
       <button class="tb-btn" title="重新连接 Spotify" onclick="reconnect()">
         <i class="ti ti-logout"></i>
       </button>
@@ -432,6 +461,7 @@ let pinned = true
 let currentTrackId = null
 let isPlaying = false
 let lyricFontSize = parseInt(localStorage.getItem('lyric_font_size') || '14')
+let brightMode = localStorage.getItem('bright_mode') === '1'
 
 function stopScroll() {
   if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
@@ -444,6 +474,17 @@ function changeFontSize(delta) {
   localStorage.setItem('lyric_font_size', lyricFontSize)
 }
 
+function applyMode() {
+  document.getElementById('app').classList.toggle('bright', brightMode)
+  document.getElementById('modeIcon').className = brightMode ? 'ti ti-moon' : 'ti ti-sun'
+}
+
+function toggleMode() {
+  brightMode = !brightMode
+  localStorage.setItem('bright_mode', brightMode ? '1' : '0')
+  applyMode()
+}
+
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
   if (e.key === '+' || e.key === '=') changeFontSize(+2)
@@ -451,7 +492,8 @@ document.addEventListener('keydown', e => {
 })
 
 /* ── init ── */
-changeFontSize(0)  // apply saved font size
+changeFontSize(0)
+applyMode()
 
 window.electron.getConfig().then(cfg => {
   CLIENT_ID = cfg.clientId
