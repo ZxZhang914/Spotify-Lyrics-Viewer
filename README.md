@@ -10,6 +10,7 @@ A floating desktop lyrics window for Spotify, built with Electron.
 - **Synced lyrics** — KTV-style character-by-character highlight in real time
 - **Multi-source lyrics** — fetches from NetEase Cloud Music → LRCLIB → lyrics.ovh as fallback
 - **Playback controls** — previous / play-pause / next, right from the window
+- **Dark / bright mode** — toggle with one click, preference saved across sessions
 - **Auto-scroll** — plain lyrics auto-scroll based on track progress
 - **Font size** — adjust with `A+` / `A−` buttons or `+` / `-` keys
 - **One-click reconnect** — re-authorize Spotify without touching DevTools
@@ -50,7 +51,9 @@ Click **Connect with Spotify** in the app and authorize. The app uses the [PKCE 
 | `+` / `-` keys | Same as above |
 | Pin button | Toggle always-on-top |
 | Refresh button | Reload current track and lyrics |
+| Sun/Moon button | Toggle dark / bright mode |
 | Logout button | Re-authorize Spotify (use when switching accounts or after permission changes) |
+| ⏮ / ⏯ / ⏭ | Previous track / play-pause / next track |
 
 ## Lyrics Sources
 
