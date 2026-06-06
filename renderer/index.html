@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lyrics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #1DB954;
+      --green-dim: #158a3e;
+      --bg: rgba(18, 18, 18, 0.92);
+      --bg-header: rgba(24, 24, 24, 0.96);
+      --border: rgba(255,255,255,0.09);
+      --text: #ffffff;
+      --text-sub: #b3b3b3;
+      --text-muted: #555;
+      --radius: 14px;
+      --lyric-size: 14px;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: 'DM Sans', 'Noto Sans SC', sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    #app {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* ── titlebar / drag region ── */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px 9px;
+      background: var(--bg-header);
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+      cursor: grab;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sp-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .titlebar-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .titlebar-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    .tb-btn {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      transition: background 0.15s, color 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    .tb-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .tb-btn.active { color: var(--green); }
+    .tb-btn.close:hover { background: rgba(226,75,74,0.15); color: #e24b4a; }
+    .tb-btn.font-btn { font-size: 11px; font-weight: 700; width: auto; padding: 0 5px; letter-spacing: -0.3px; }
+
+    /* ── now playing strip ── */
+    .now-playing {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .now-playing.visible { display: flex; }
+
+    .cover {
+      width: 72px; height: 72px;
+      border-radius: 8px;
+      background: #222;
+      flex-shrink: 0;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .cover img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .cover i { font-size: 28px; color: #444; }
+
+    .track-info { flex: 1; min-width: 0; }
+
+    .track-name {
+      font-size: 16px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .track-artist {
+      font-size: 13px; color: var(--text-sub); margin-top: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .eq-bars {
+      display: flex; align-items: flex-end; gap: 2px; height: 22px; flex-shrink: 0;
+    }
+
+    .eq-bar {
+      width: 2px; background: var(--green); border-radius: 1px;
+      animation: eq 1.3s ease-in-out infinite;
+    }
+
+    .eq-bar:nth-child(1){height:5px;animation-delay:0s}
+    .eq-bar:nth-child(2){height:10px;animation-delay:.2s}
+    .eq-bar:nth-child(3){height:7px;animation-delay:.4s}
+    .eq-bar:nth-child(4){height:13px;animation-delay:.1s}
+
+    @keyframes eq { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
+
+    /* ── progress ── */
+    .progress-wrap { height: 2px; background: #1a1a1a; flex-shrink: 0; }
+    .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width 1s linear; }
+
+    /* ── lyrics area ── */
+    .lyrics-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    .lyrics-scroll::-webkit-scrollbar { width: 3px; }
+    .lyrics-scroll::-webkit-scrollbar-track { background: transparent; }
+    .lyrics-scroll::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+    .lyrics-inner {
+      padding: 16px 14px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .lyric-line {
+      font-size: var(--lyric-size);
+      font-weight: 500;
+      color: #252525;
+      line-height: 1.6;
+      padding: 3px 0;
+      transition: color 0.3s, font-size 0.2s;
+    }
+
+    .lyric-line.past  { color: #222; }
+    .lyric-line.near  { color: #606060; font-size: calc(var(--lyric-size) + 1px); }
+    .lyric-line.active { color: #ffffff; font-size: calc(var(--lyric-size) + 3px); font-weight: 600; }
+    .lyric-line.active .lyric-char {
+      background: linear-gradient(to right, var(--green) var(--char-fill, 0%), #ffffff var(--char-fill, 0%));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ── state screens ── */
+    .state {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; padding: 1.5rem; text-align: center;
+    }
+
+    .state i { font-size: 32px; color: #222; }
+    .state p { font-size: 12px; color: var(--text-sub); line-height: 1.6; max-width: 220px; }
+    .state span { color: var(--text); }
+    .state .btn-green {
+      background: var(--green); color: #000;
+      border: none; border-radius: 500px;
+      padding: 10px 24px; font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 4px;
+    }
+    .state .btn-green:hover { background: #1ed760; }
+    .state .btn-green:active { transform: scale(0.97); }
+
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid #222;
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── playback controls ── */
+    .controls {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 12px 7px;
+      flex-shrink: 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .controls.visible { display: flex; }
+
+    .ctrl-btn {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    .ctrl-btn.play-pause {
+      width: 34px; height: 34px;
+      background: var(--green);
+      color: #000;
+      font-size: 15px;
+    }
+
+    .ctrl-btn.play-pause:hover { background: #1ed760; }
+
+    /* ── footer ── */
+    .footer {
+      padding: 5px 12px 8px;
+      font-size: 10px;
+      color: #2a2a2a;
+      text-align: center;
+      flex-shrink: 0;
+      transition: color 0.2s;
+    }
+
+    .footer.visible { color: #3a3a3a; }
+
+    /* ── setup overlay ── */
+    #setup {
+      position: absolute; inset: 0;
+      background: var(--bg);
+      border-radius: var(--radius);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.2rem; padding: 2rem; text-align: center;
+      z-index: 100;
+      -webkit-app-region: drag;
+    }
+
+    #setup.hidden { display: none; }
+
+    .setup-logo { display: flex; align-items: center; gap: 9px; -webkit-app-region: no-drag; }
+
+    .setup-logo svg { width: 32px; height: 32px; }
+
+    .setup-logo-text { font-size: 18px; font-weight: 600; }
+    .setup-logo-text em { font-style: normal; color: var(--green); }
+
+    .setup-sub { font-size: 13px; color: var(--text-sub); max-width: 240px; line-height: 1.5; -webkit-app-region: no-drag; }
+
+    .setup-error { font-size: 12px; color: #e24b4a; max-width: 240px; line-height: 1.5; display: none; }
+
+    #setup .btn-green {
+      background: var(--green); color: #000;
+      border: none; border-radius: 500px;
+      padding: 11px 28px; font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      -webkit-app-region: no-drag;
+    }
+
+    #setup .btn-green:hover { background: #1ed760; }
+    #setup .btn-green:active { transform: scale(0.97); }
+
+    .setup-note { font-size: 11px; color: var(--text-muted); max-width: 240px; line-height: 1.6; -webkit-app-region: no-drag; }
+
+    /* window controls (top-left macOS style) */
+    .wc { display: flex; gap: 6px; position: absolute; top: 12px; left: 12px; -webkit-app-region: no-drag; }
+    .wc-btn {
+      width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .wc-btn:hover { opacity: 0.8; }
+    .wc-close { background: #ff5f57; }
+    .wc-min   { background: #febc2e; }
+  </style>
+</head>
+<body>
+
+<!-- setup overlay -->
+<div id="setup">
+  <div class="wc">
+    <button class="wc-btn wc-close" onclick="window.electron.closeWindow()"></button>
+    <button class="wc-btn wc-min"   onclick="window.electron.minimizeWindow()"></button>
+  </div>
+  <div class="setup-logo">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#1DB954"/><path d="M17.5 16.5c-.2 0-.3-.1-.5-.2-1.8-1.1-4-1.6-6.6-1.6-1.4 0-2.7.2-3.9.4-.3.1-.5-.1-.6-.4-.1-.3.1-.5.4-.6 1.3-.3 2.8-.5 4.1-.5 2.8 0 5.3.6 7.3 1.8.2.1.3.4.2.7-.1.3-.2.4-.4.4zm1-2.7c-.2 0-.4-.1-.5-.2-2-1.2-5-1.9-8.1-1.9-1.5 0-3 .2-4.2.6-.3.1-.6-.1-.7-.4-.1-.3.1-.6.4-.7 1.3-.4 2.9-.6 4.5-.6 3.4 0 6.6.8 8.8 2.1.3.2.4.5.2.8-.1.2-.3.3-.4.3zm1.1-2.9c-.2 0-.3 0-.5-.1C16.8 9.4 13.3 8.6 9.5 8.6c-1.9 0-3.7.2-5.3.7-.3.1-.7-.1-.8-.4-.1-.3.1-.7.4-.8 1.7-.5 3.7-.7 5.7-.7 4 0 7.9.9 10.8 2.6.3.2.4.5.2.8-.1.2-.4.3-.5.3z" fill="#000"/></svg>
+    <div class="setup-logo-text">Lyrics <em>Viewer</em></div>
+  </div>
+  <p class="setup-sub">Floating lyrics for whatever you're playing on Spotify</p>
+  <button class="btn-green" onclick="startAuth()">Connect with Spotify</button>
+  <p class="setup-error" id="setupError"></p>
+  <p class="setup-note">Read-only access to currently playing track. Nothing is stored.</p>
+</div>
+
+<!-- main app -->
+<div id="app">
+  <div class="titlebar">
+    <div class="wc" style="position:static; -webkit-app-region:no-drag;">
+      <button class="wc-btn wc-close" onclick="window.electron.closeWindow()"></button>
+      <button class="wc-btn wc-min"   onclick="window.electron.minimizeWindow()"></button>
+    </div>
+    <div class="titlebar-left">
+      <div class="sp-dot" id="statusDot" style="display:none"></div>
+    </div>
+    <div class="titlebar-actions">
+      <button class="tb-btn font-btn" title="Smaller text  ( – )" onclick="changeFontSize(-2)">A−</button>
+      <button class="tb-btn font-btn" title="Larger text  ( + )" onclick="changeFontSize(+2)">A+</button>
+      <button class="tb-btn active" id="pinBtn" title="Always on top" onclick="togglePin()">
+        <i class="ti ti-pin"></i>
+      </button>
+      <button class="tb-btn" title="Refresh" onclick="refreshTrack()">
+        <i class="ti ti-refresh"></i>
+      </button>
+      <button class="tb-btn" title="重新连接 Spotify" onclick="reconnect()">
+        <i class="ti ti-logout"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="now-playing" id="nowPlaying">
+    <div class="cover" id="coverWrap">
+      <i class="ti ti-music" id="coverIcon"></i>
+      <img id="coverImg" alt="cover"/>
+    </div>
+    <div class="track-info">
+      <div class="track-name" id="trackName">—</div>
+      <div class="track-artist" id="trackArtist">—</div>
+    </div>
+    <div class="eq-bars">
+      <div class="eq-bar"></div><div class="eq-bar"></div>
+      <div class="eq-bar"></div><div class="eq-bar"></div>
+    </div>
+  </div>
+
+  <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="controls" id="controls">
+    <button class="ctrl-btn" title="上一首" onclick="prevTrack()">
+      <i class="ti ti-player-skip-back"></i>
+    </button>
+    <button class="ctrl-btn play-pause" id="playPauseBtn" title="播放/暂停" onclick="togglePlayPause()">
+      <i class="ti ti-player-pause" id="playPauseIcon"></i>
+    </button>
+    <button class="ctrl-btn" title="下一首" onclick="nextTrack()">
+      <i class="ti ti-player-skip-forward"></i>
+    </button>
+  </div>
+
+  <div class="lyrics-scroll" id="lyricsScroll">
+    <div class="state" id="stateIdle">
+      <i class="ti ti-player-pause"></i>
+      <p>Play something on Spotify, then hit <span>Refresh</span></p>
+    </div>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+/* ── config ── */
+let CLIENT_ID = ''
+let REDIRECT_URI = ''
+let token = null
+let scrollTimer = null
+let ktvRaf = null
+let ktvChars = null
+let lastSungCount = 0
+let pollTimer = null
+let pinned = true
+let currentTrackId = null
+let isPlaying = false
+let lyricFontSize = parseInt(localStorage.getItem('lyric_font_size') || '14')
+
+function stopScroll() {
+  if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
+  if (ktvRaf) { cancelAnimationFrame(ktvRaf); ktvRaf = null }
+}
+
+function changeFontSize(delta) {
+  lyricFontSize = Math.max(10, Math.min(24, lyricFontSize + delta))
+  document.documentElement.style.setProperty('--lyric-size', lyricFontSize + 'px')
+  localStorage.setItem('lyric_font_size', lyricFontSize)
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+  if (e.key === '+' || e.key === '=') changeFontSize(+2)
+  if (e.key === '-' || e.key === '_') changeFontSize(-2)
+})
+
+/* ── init ── */
+changeFontSize(0)  // apply saved font size
+
+window.electron.getConfig().then(cfg => {
+  CLIENT_ID = cfg.clientId
+  REDIRECT_URI = cfg.redirectUri
+
+  // restore token
+  const stored = localStorage.getItem('sp_token')
+  if (stored) {
+    token = stored
+    hideSetup()
+    refreshTrack()
+    startPoll()
+  }
+})
+
+window.electron.onAuthResult(({ code, error }) => {
+  if (error) {
+    showSetupError('Authorization failed: ' + error)
+    return
+  }
+  if (code) exchangeCode(code)
+})
+
+/* ── PKCE ── */
+function base64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+}
+
+async function generatePKCE() {
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)))
+  const challenge = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)))
+  return { verifier, challenge }
+}
+
+async function startAuth() {
+  const { verifier, challenge } = await generatePKCE()
+  localStorage.setItem('sp_verifier', verifier)
+  const p = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: 'user-read-currently-playing user-read-playback-state user-modify-playback-state',
+    code_challenge_method: 'S256',
+    code_challenge: challenge
+  })
+  window.electron.startAuth('https://accounts.spotify.com/authorize?' + p)
+}
+
+async function exchangeCode(code) {
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID,
+      code_verifier: localStorage.getItem('sp_verifier')
+    })
+    const r = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    })
+    if (!r.ok) throw new Error('token exchange failed')
+    const d = await r.json()
+    token = d.access_token
+    localStorage.setItem('sp_token', token)
+    hideSetup()
+    refreshTrack()
+    startPoll()
+  } catch (e) {
+    showSetupError('Failed to get token. Please try again.')
+  }
+}
+
+/* ── setup UI ── */
+function hideSetup() {
+  document.getElementById('setup').classList.add('hidden')
+  document.getElementById('statusDot').style.display = 'block'
+}
+
+function showSetupError(msg) {
+  const el = document.getElementById('setupError')
+  el.textContent = msg
+  el.style.display = 'block'
+}
+
+/* ── reconnect ── */
+function reconnect() {
+  localStorage.removeItem('sp_token')
+  localStorage.removeItem('sp_verifier')
+  token = null
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  stopScroll()
+  document.getElementById('nowPlaying').classList.remove('visible')
+  document.getElementById('controls').classList.remove('visible')
+  document.getElementById('progressFill').style.width = '0%'
+  document.getElementById('statusDot').style.display = 'none'
+  const setupEl = document.getElementById('setup')
+  setupEl.classList.remove('hidden')
+  document.getElementById('setupError').style.display = 'none'
+}
+
+/* ── pin ── */
+function togglePin() {
+  pinned = !pinned
+  window.electron.toggleAlwaysOnTop(pinned)
+  const btn = document.getElementById('pinBtn')
+  btn.classList.toggle('active', pinned)
+}
+
+/* ── Spotify API ── */
+async function getPlaying() {
+  try {
+    const r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    if (r.status === 204) return null
+    if (r.status === 401) {
+      token = null
+      localStorage.removeItem('sp_token')
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+      stopScroll()
+      document.getElementById('setup').classList.remove('hidden')
+      document.getElementById('statusDot').style.display = 'none'
+      document.getElementById('nowPlaying').classList.remove('visible')
+      showSetupError('Session expired — please reconnect.')
+      return null
+    }
+    if (!r.ok) return null
+    const d = await r.json()
+    if (!d || !d.item) return null
+    return {
+      id: d.item.id,
+      name: d.item.name,
+      artist: d.item.artists.map(a => a.name).join(', '),
+      albumImg: d.item.album?.images?.[1]?.url || d.item.album?.images?.[0]?.url || null,
+      progressMs: d.progress_ms || 0,
+      durationMs: d.item.duration_ms || 1,
+      isPlaying: d.is_playing ?? true
+    }
+  } catch { return null }
+}
+
+/* ── lyrics ── */
+async function getLyricsNetease(artist, title) {
+  const trySearch = async (q) => {
+    try {
+      const sr = await fetch(`https://netease-cloud-music-api-ten-psi.vercel.app/search?keywords=${encodeURIComponent(q)}&limit=1`)
+      if (!sr.ok) return null
+      const sd = await sr.json()
+      const id = sd?.result?.songs?.[0]?.id
+      if (!id) return null
+      const lr = await fetch(`https://netease-cloud-music-api-ten-psi.vercel.app/lyric?id=${id}`)
+      if (!lr.ok) return null
+      const ld = await lr.json()
+      const lrc = ld?.lrc?.lyric
+      if (!lrc) return null
+      return { raw: lrc, source: 'NetEase', timed: true }
+    } catch { return null }
+  }
+  return await trySearch(title + ' ' + artist) || await trySearch(title)
+}
+
+async function getLyricsLrclib(artist, title) {
+  try {
+    const r = await fetch('https://lrclib.net/api/get?' + new URLSearchParams({ artist_name: artist, track_name: title }))
+    if (r.status === 404) return null
+    if (!r.ok) return null
+    const d = await r.json()
+    if (d.syncedLyrics) return { raw: d.syncedLyrics, source: 'LRCLIB', timed: true }
+    if (d.plainLyrics) return { raw: d.plainLyrics, source: 'LRCLIB', timed: false }
+    return null
+  } catch { return null }
+}
+
+async function getLyricsOvh(artist, title) {
+  try {
+    const a = artist.split(/,|feat\.|&/)[0].trim()
+    const r = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(title)}`)
+    if (!r.ok) return null
+    const d = await r.json()
+    if (!d.lyrics) return null
+    return { raw: d.lyrics, source: 'lyrics.ovh', timed: false }
+  } catch { return null }
+}
+
+async function getLyrics(artist, title) {
+  return await getLyricsNetease(artist, title)
+    || await getLyricsLrclib(artist, title)
+    || await getLyricsOvh(artist, title)
+    || null
+}
+
+function parseLRC(lrc) {
+  const lines = []
+  const re = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/g
+  let m
+  while ((m = re.exec(lrc)) !== null) {
+    const ms = +m[1]*60000 + +m[2]*1000 + parseInt(m[3].padEnd(3,'0'))
+    const text = m[4].trim()
+    if (text) lines.push({ time: ms, text })
+  }
+  return lines.sort((a,b) => a.time - b.time)
+}
+
+function parsePlain(raw) {
+  return raw.split('\n').map(l => l.trim()).filter(Boolean).map(text => ({ time: null, text }))
+}
+
+/* ── UI helpers ── */
+function setScroll(html) {
+  document.getElementById('lyricsScroll').innerHTML = html
+}
+
+function updatePlayPauseBtn(playing) {
+  isPlaying = playing
+  const icon = document.getElementById('playPauseIcon')
+  icon.className = playing ? 'ti ti-player-pause' : 'ti ti-player-play'
+}
+
+function updateNowPlaying(track) {
+  document.getElementById('nowPlaying').classList.add('visible')
+  document.getElementById('controls').classList.add('visible')
+  document.getElementById('trackName').textContent = track.name
+  document.getElementById('trackArtist').textContent = track.artist
+  const img = document.getElementById('coverImg')
+  const icon = document.getElementById('coverIcon')
+  if (track.albumImg) { img.src = track.albumImg; img.style.display='block'; icon.style.display='none' }
+  else { img.style.display='none'; icon.style.display='block' }
+  document.getElementById('progressFill').style.width = Math.round((track.progressMs/track.durationMs)*100)+'%'
+  updatePlayPauseBtn(track.isPlaying)
+}
+
+async function spotifyControl(method, endpoint) {
+  if (!token) return
+  try {
+    await fetch('https://api.spotify.com/v1/me/player/' + endpoint, {
+      method,
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    setTimeout(refreshTrack, 400)
+  } catch {}
+}
+
+async function togglePlayPause() {
+  await spotifyControl('PUT', isPlaying ? 'pause' : 'play')
+}
+
+async function prevTrack() {
+  await spotifyControl('POST', 'previous')
+}
+
+async function nextTrack() {
+  await spotifyControl('POST', 'next')
+}
+
+function renderLines(lines) {
+  const scroll = document.getElementById('lyricsScroll')
+  scroll.innerHTML = ''
+  const inner = document.createElement('div')
+  inner.className = 'lyrics-inner'
+  lines.forEach((line, i) => {
+    const el = document.createElement('div')
+    el.className = 'lyric-line' + (i === 0 ? ' active' : '')
+    if (line.time !== null) el.dataset.time = line.time
+    for (const ch of line.text) {
+      const span = document.createElement('span')
+      span.className = 'lyric-char'
+      span.textContent = ch
+      el.appendChild(span)
+    }
+    inner.appendChild(el)
+  })
+  scroll.appendChild(inner)
+}
+
+function highlightLine(index) {
+  const lines = document.getElementById('lyricsScroll').querySelectorAll('.lyric-line')
+  lines.forEach((el, i) => {
+    el.classList.remove('active','near','past')
+    if (i < index) el.classList.add('past')
+    else if (i === index) el.classList.add('active')
+    else if (Math.abs(i-index) === 1) el.classList.add('near')
+  })
+  ktvChars = lines[index]?.querySelectorAll('.lyric-char') ?? null
+  lastSungCount = 0
+  if (lines[index]) lines[index].scrollIntoView({ behavior:'smooth', block:'center' })
+}
+
+function startTimedScroll(lines, progressMs) {
+  stopScroll()
+  const wallStart = Date.now()
+  const baseProgress = progressMs
+  let cur = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].time <= progressMs) cur = i; else break
+  }
+  highlightLine(cur)
+
+  const tick = () => {
+    const elapsed = baseProgress + (Date.now() - wallStart)
+
+    let next = 0
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].time <= elapsed) next = i; else break
+    }
+    if (next !== cur) { cur = next; highlightLine(cur) }
+
+    if (ktvChars && ktvChars.length) {
+      const lineStart = lines[cur].time
+      const lineEnd = lines[cur + 1]?.time ?? (lineStart + 6000)
+      const fraction = Math.min(1, Math.max(0, (elapsed - lineStart) / (lineEnd - lineStart)))
+      const sweepPos = fraction * ktvChars.length
+      const fullGreen = Math.floor(sweepPos)
+      const partialPct = (sweepPos - fullGreen) * 100
+
+      for (let i = lastSungCount; i < fullGreen && i < ktvChars.length; i++) {
+        ktvChars[i].style.setProperty('--char-fill', '100%')
+      }
+      if (fullGreen > lastSungCount) lastSungCount = fullGreen
+      if (fullGreen < ktvChars.length) {
+        ktvChars[fullGreen].style.setProperty('--char-fill', partialPct.toFixed(1) + '%')
+      }
+    }
+
+    ktvRaf = requestAnimationFrame(tick)
+  }
+  ktvRaf = requestAnimationFrame(tick)
+}
+
+function startPlainScroll(lines, progressMs, durationMs) {
+  stopScroll()
+  const total = lines.length
+  if (!total) return
+  const mpl = durationMs / total
+  const wallStart = Date.now()
+  const baseProgress = progressMs
+  let cur = Math.min(Math.floor(baseProgress/mpl), total-1)
+  highlightLine(cur)
+  scrollTimer = setInterval(() => {
+    const elapsed = baseProgress + (Date.now() - wallStart)
+    const next = Math.min(Math.floor(elapsed/mpl), total-1)
+    if (next !== cur) { cur = next; highlightLine(cur) }
+    document.getElementById('progressFill').style.width = Math.min(Math.round((elapsed/durationMs)*100),100)+'%'
+    if (cur >= total-1) clearInterval(scrollTimer)
+  }, 1000)
+}
+
+/* ── main ── */
+async function refreshTrack() {
+  stopScroll()
+  setScroll('<div class="state"><div class="spinner"></div><p>Loading…</p></div>')
+
+  const trackFetchTime = Date.now()
+  const track = await getPlaying()
+  if (!track) {
+    document.getElementById('nowPlaying').classList.remove('visible')
+    document.getElementById('controls').classList.remove('visible')
+    document.getElementById('progressFill').style.width = '0%'
+    setScroll('<div class="state"><i class="ti ti-player-pause"></i><p>Nothing playing on Spotify</p></div>')
+    const f = document.getElementById('footer'); f.textContent=''; f.className='footer'
+    return
+  }
+
+  updateNowPlaying(track)
+  currentTrackId = track.id
+  setScroll('<div class="state"><div class="spinner"></div><p>Finding lyrics…</p></div>')
+
+  const result = await getLyrics(track.artist, track.name)
+  if (!result) {
+    setScroll(`<div class="state"><i class="ti ti-file-x"></i><p>No lyrics found for <span>${track.name}</span></p></div>`)
+    const f = document.getElementById('footer'); f.textContent=''; f.className='footer'
+    return
+  }
+
+  let lines = result.timed ? parseLRC(result.raw) : parsePlain(result.raw)
+  if (!lines.length) lines = parsePlain(result.raw)
+  if (!lines.length) {
+    setScroll(`<div class="state"><i class="ti ti-file-x"></i><p>No lyrics found</p></div>`)
+    return
+  }
+
+  const adjustedProgress = track.progressMs + (Date.now() - trackFetchTime)
+  renderLines(lines)
+  result.timed
+    ? startTimedScroll(lines, adjustedProgress)
+    : startPlainScroll(lines, adjustedProgress, track.durationMs)
+
+  const f = document.getElementById('footer')
+  f.textContent = result.source + (result.timed ? ' · synced' : ' · auto-scroll')
+  f.className = 'footer visible'
+}
+
+function startPoll() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(async () => {
+    const t = await getPlaying()
+    if (!t) return
+    if (t.id !== currentTrackId) { refreshTrack(); return }
+    updatePlayPauseBtn(t.isPlaying)
+  }, 15000)
+}
+</script>
+</body>
+</html>
