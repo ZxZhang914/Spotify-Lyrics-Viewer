@@ -460,6 +460,8 @@ let pollTimer = null
 let pinned = true
 let currentTrackId = null
 let isPlaying = false
+let currentLines = null
+let currentLyricsTimed = false
 let lyricFontSize = parseInt(localStorage.getItem('lyric_font_size') || '14')
 let brightMode = localStorage.getItem('bright_mode') === '1'
 
@@ -729,25 +731,41 @@ function updateNowPlaying(track) {
 
 async function spotifyControl(method, endpoint) {
   if (!token) return
-  try {
-    await fetch('https://api.spotify.com/v1/me/player/' + endpoint, {
-      method,
-      headers: { Authorization: 'Bearer ' + token }
-    })
-    setTimeout(refreshTrack, 400)
-  } catch {}
+  await fetch('https://api.spotify.com/v1/me/player/' + endpoint, {
+    method, headers: { Authorization: 'Bearer ' + token }
+  }).catch(() => {})
 }
 
 async function togglePlayPause() {
-  await spotifyControl('PUT', isPlaying ? 'pause' : 'play')
+  if (isPlaying) {
+    await spotifyControl('PUT', 'pause')
+    stopScroll()
+    updatePlayPauseBtn(false)
+  } else {
+    await spotifyControl('PUT', 'play')
+    updatePlayPauseBtn(true)
+    if (currentLines) {
+      setTimeout(async () => {
+        const t = await getPlaying()
+        if (!t || !currentLines) return
+        currentLyricsTimed
+          ? startTimedScroll(currentLines, t.progressMs, t.durationMs)
+          : startPlainScroll(currentLines, t.progressMs, t.durationMs)
+        document.getElementById('progressFill').style.width =
+          Math.round((t.progressMs / t.durationMs) * 100) + '%'
+      }, 300)
+    }
+  }
 }
 
 async function prevTrack() {
   await spotifyControl('POST', 'previous')
+  setTimeout(refreshTrack, 400)
 }
 
 async function nextTrack() {
   await spotifyControl('POST', 'next')
+  setTimeout(refreshTrack, 400)
 }
 
 function renderLines(lines) {
@@ -883,6 +901,9 @@ async function refreshTrack() {
     setScroll(`<div class="state"><i class="ti ti-file-x"></i><p>No lyrics found</p></div>`)
     return
   }
+
+  currentLines = lines
+  currentLyricsTimed = result.timed
 
   const adjustedProgress = track.progressMs + (Date.now() - trackFetchTime)
   renderLines(lines)
