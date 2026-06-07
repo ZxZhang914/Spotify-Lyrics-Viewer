@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <script defer src="https://cdn.jsdelivr.net/npm/opencc-js@1/dist/umd/full.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -705,6 +706,14 @@ function parsePlain(raw) {
   return raw.split('\n').map(l => l.trim()).filter(Boolean).map(text => ({ time: null, text }))
 }
 
+let _t2s = null
+function toSimplified(text) {
+  try {
+    if (!_t2s && typeof OpenCC !== 'undefined') _t2s = OpenCC.Converter({ from: 'tw', to: 'cn' })
+    return _t2s ? _t2s(text) : text
+  } catch { return text }
+}
+
 /* ── UI helpers ── */
 function setScroll(html) {
   document.getElementById('lyricsScroll').innerHTML = html
@@ -897,6 +906,7 @@ async function refreshTrack() {
 
   let lines = result.timed ? parseLRC(result.raw) : parsePlain(result.raw)
   if (!lines.length) lines = parsePlain(result.raw)
+  lines = lines.map(l => ({ ...l, text: toSimplified(l.text) }))
   if (!lines.length) {
     setScroll(`<div class="state"><i class="ti ti-file-x"></i><p>No lyrics found</p></div>`)
     return
