@@ -397,6 +397,9 @@
       <button class="tb-btn active" id="pinBtn" title="Always on top" onclick="togglePin()">
         <i class="ti ti-pin"></i>
       </button>
+      <button class="tb-btn font-btn" id="srcBtn" onclick="toggleSource()" title="切换歌词源 (L = LRCLIB / N = NetEase)">
+        <span id="srcLabel">L</span>
+      </button>
       <button class="tb-btn" title="Refresh" onclick="refreshTrack()">
         <i class="ti ti-refresh"></i>
       </button>
@@ -465,10 +468,22 @@ let currentLines = null
 let currentLyricsTimed = false
 let lyricFontSize = parseInt(localStorage.getItem('lyric_font_size') || '14')
 let brightMode = localStorage.getItem('bright_mode') === '1'
+let lyricsSource = (['lrclib','netease'].includes(localStorage.getItem('lyrics_source'))) ? localStorage.getItem('lyrics_source') : 'lrclib'
 
 function stopScroll() {
   if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
   if (ktvRaf) { cancelAnimationFrame(ktvRaf); ktvRaf = null }
+}
+
+function updateSrcBtn() {
+  document.getElementById('srcLabel').textContent = lyricsSource === 'lrclib' ? 'L' : 'N'
+}
+
+function toggleSource() {
+  lyricsSource = lyricsSource === 'lrclib' ? 'netease' : 'lrclib'
+  localStorage.setItem('lyrics_source', lyricsSource)
+  updateSrcBtn()
+  refreshTrack()
 }
 
 function changeFontSize(delta) {
@@ -497,6 +512,7 @@ document.addEventListener('keydown', e => {
 /* ── init ── */
 changeFontSize(0)
 applyMode()
+updateSrcBtn()
 
 window.electron.getConfig().then(cfg => {
   CLIENT_ID = cfg.clientId
@@ -692,22 +708,9 @@ async function getLyricsLrclib(artist, title) {
   } catch { return null }
 }
 
-async function getLyricsOvh(artist, title) {
-  try {
-    const a = artist.split(/,|feat\.|&/)[0].trim()
-    const r = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(title)}`)
-    if (!r.ok) return null
-    const d = await r.json()
-    if (!d.lyrics) return null
-    return { raw: d.lyrics, source: 'lyrics.ovh', timed: false }
-  } catch { return null }
-}
-
 async function getLyrics(artist, title) {
-  return await getLyricsLrclib(artist, title)
-    || await getLyricsNetease(artist, title)
-    || await getLyricsOvh(artist, title)
-    || null
+  if (lyricsSource === 'netease') return await getLyricsNetease(artist, title) || null
+  return await getLyricsLrclib(artist, title) || null
 }
 
 function parseLRC(lrc) {
