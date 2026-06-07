@@ -4,7 +4,7 @@ A floating desktop lyrics window for Spotify, built with Electron.
 
 ![Electron](https://img.shields.io/badge/Electron-30-47848F?logo=electron) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
-![demo](https://github.com/user-attachments/assets/e8ab7cea-937d-413d-9d63-158e79e59a34)
+![demo](https://github.com/user-attachments/assets/27fddcb5-f522-4a83-915e-3b9968848db0)
 
 ## Features
 
