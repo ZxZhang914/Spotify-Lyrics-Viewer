@@ -644,11 +644,23 @@ async function getPlaying() {
 /* ── lyrics ── */
 async function getLyricsNetease(artist, title) {
   const BASE = 'https://music.163.com/api'
+
+  function normTitle(t) {
+    return t.toLowerCase().replace(/[^一-鿿a-z0-9]/g, '')
+  }
+
   const trySearch = async (q) => {
     try {
-      const sr = await window.electron.fetchNetease(`${BASE}/search/get/?s=${encodeURIComponent(q)}&type=1&offset=0&total=true&limit=1`)
+      const sr = await window.electron.fetchNetease(`${BASE}/search/get/?s=${encodeURIComponent(q)}&type=1&offset=0&total=true&limit=5`)
       if (!sr.ok) return null
-      const id = sr.body?.result?.songs?.[0]?.id
+      const songs = sr.body?.result?.songs
+      if (!songs?.length) return null
+      const norm = normTitle(title)
+      // Pick the song whose title best matches the expected track title
+      const matched = songs.find(s => normTitle(s.name) === norm)
+        || songs.find(s => { const n = normTitle(s.name); return n.includes(norm) || norm.includes(n) })
+        || songs[0]
+      const id = matched?.id
       if (!id) return null
       const lr = await window.electron.fetchNetease(`${BASE}/song/lyric?id=${id}&lv=1&kv=1&tv=-1`)
       if (!lr.ok) return null
@@ -657,7 +669,15 @@ async function getLyricsNetease(artist, title) {
       return { raw: lrc, source: 'NetEase', timed: true }
     } catch { return null }
   }
-  return await trySearch(title + ' ' + artist) || await trySearch(title)
+
+  // Try title-only first when artist name is Latin (e.g. "Jay Chou") to avoid
+  // NetEase matching a wrong song due to the English name not being recognized
+  const hasChineseArtist = /[一-鿿]/.test(artist)
+  if (hasChineseArtist) {
+    return await trySearch(title + ' ' + artist) || await trySearch(title)
+  } else {
+    return await trySearch(title) || await trySearch(title + ' ' + artist)
+  }
 }
 
 async function getLyricsLrclib(artist, title) {
@@ -684,8 +704,8 @@ async function getLyricsOvh(artist, title) {
 }
 
 async function getLyrics(artist, title) {
-  return await getLyricsNetease(artist, title)
-    || await getLyricsLrclib(artist, title)
+  return await getLyricsLrclib(artist, title)
+    || await getLyricsNetease(artist, title)
     || await getLyricsOvh(artist, title)
     || null
 }
