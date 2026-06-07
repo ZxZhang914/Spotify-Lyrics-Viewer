@@ -783,7 +783,7 @@ function highlightLine(index) {
   if (lines[index]) lines[index].scrollIntoView({ behavior:'smooth', block:'center' })
 }
 
-function startTimedScroll(lines, progressMs) {
+function startTimedScroll(lines, progressMs, durationMs) {
   stopScroll()
   const wallStart = Date.now()
   const baseProgress = progressMs
@@ -822,6 +822,14 @@ function startTimedScroll(lines, progressMs) {
     ktvRaf = requestAnimationFrame(tick)
   }
   ktvRaf = requestAnimationFrame(tick)
+
+  if (durationMs) {
+    const fill = document.getElementById('progressFill')
+    scrollTimer = setInterval(() => {
+      const elapsed = baseProgress + (Date.now() - wallStart)
+      fill.style.width = Math.min(Math.round((elapsed / durationMs) * 100), 100) + '%'
+    }, 1000)
+  }
 }
 
 function startPlainScroll(lines, progressMs, durationMs) {
@@ -879,7 +887,7 @@ async function refreshTrack() {
   const adjustedProgress = track.progressMs + (Date.now() - trackFetchTime)
   renderLines(lines)
   result.timed
-    ? startTimedScroll(lines, adjustedProgress)
+    ? startTimedScroll(lines, adjustedProgress, track.durationMs)
     : startPlainScroll(lines, adjustedProgress, track.durationMs)
 
   const f = document.getElementById('footer')
